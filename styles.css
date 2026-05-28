@@ -17,6 +17,7 @@
 html,
 body {
   min-height: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -28,6 +29,7 @@ body {
     radial-gradient(circle at 84% 78%, rgba(255, 111, 158, 0.16), transparent 27rem),
     linear-gradient(135deg, #07111f 0%, #102436 46%, #151622 100%);
   overflow-x: hidden;
+  touch-action: manipulation;
 }
 
 button {
@@ -84,7 +86,7 @@ h1 {
 }
 
 .hud span {
-  min-width: 82px;
+  min-width: 76px;
   padding: 10px 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -168,6 +170,21 @@ canvas {
   box-shadow: 0 14px 32px rgba(114, 242, 165, 0.24);
 }
 
+.status-strip {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 4px 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.status-strip span:last-child {
+  color: var(--gold);
+  text-align: right;
+}
+
 .controls {
   display: none;
   justify-content: space-between;
@@ -182,7 +199,8 @@ canvas {
 }
 
 .pad,
-.jump {
+.jump,
+.dash {
   width: 58px;
   height: 52px;
   border: 1px solid var(--line);
@@ -199,39 +217,154 @@ canvas {
   background: var(--cyan);
 }
 
-@media (max-width: 760px) {
+.dash {
+  width: 66px;
+  color: #07111f;
+  background: var(--gold);
+}
+
+@media (max-width: 900px) {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    overflow: hidden;
+    background: #07111f;
+  }
+
   .shell {
-    width: min(100vw - 16px, 680px);
-    align-items: start;
-    padding-top: 8px;
+    width: 100vw;
+    min-height: 100dvh;
+    align-items: stretch;
+    padding: 0;
   }
 
   .game-panel {
-    padding: 10px;
+    display: grid;
+    grid-template-rows: auto auto auto auto;
+    min-height: 100dvh;
+    padding: 8px;
+    border: 0;
+    border-radius: 0;
+    align-content: start;
   }
 
   .topbar {
-    align-items: start;
-    flex-direction: column;
-    padding-bottom: 10px;
+    align-items: center;
+    flex-direction: row;
+    gap: 8px;
+    padding: 2px 2px 8px;
+  }
+
+  .eyebrow {
+    display: none;
+  }
+
+  h1 {
+    max-width: 8.5em;
+    font-size: 1.05rem;
+    line-height: 1.12;
   }
 
   .hud {
-    justify-content: flex-start;
-    width: 100%;
+    justify-content: flex-end;
+    width: auto;
+    flex: 1;
+    gap: 5px;
   }
 
   .hud span {
     min-width: 0;
-    flex: 1;
-    padding-inline: 8px;
+    flex: 0 1 auto;
+    padding: 7px 6px;
+    font-size: 0.78rem;
   }
 
   .canvas-wrap {
-    min-height: 230px;
+    min-height: 0;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    align-self: start;
+  }
+
+  .overlay {
+    padding: 16px;
+  }
+
+  .overlay h2 {
+    font-size: clamp(2rem, 13vw, 4.2rem);
+  }
+
+  .status-strip {
+    padding: 8px 2px 0;
+    font-size: 0.78rem;
   }
 
   .controls {
     display: flex;
+    padding-top: 8px;
+    padding-bottom: max(4px, env(safe-area-inset-bottom));
+  }
+
+  .pad,
+  .jump,
+  .dash {
+    width: 64px;
+    height: 58px;
+    font-size: 1.05rem;
+  }
+
+  .jump {
+    width: 82px;
+  }
+}
+
+@media (max-width: 900px) and (orientation: landscape) {
+  .game-panel {
+    grid-template-rows: auto minmax(0, 1fr) auto;
+  }
+
+  .topbar {
+    position: absolute;
+    z-index: 3;
+    left: 10px;
+    right: 10px;
+    top: 8px;
+    pointer-events: none;
+  }
+
+  .topbar h1 {
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
+  }
+
+  .hud span {
+    background: rgba(7, 17, 31, 0.58);
+  }
+
+  .canvas-wrap {
+    grid-row: 1 / span 2;
+    height: calc(100dvh - 76px);
+  }
+
+  .status-strip {
+    display: none;
+  }
+
+  .controls {
+    position: absolute;
+    z-index: 4;
+    left: 10px;
+    right: 10px;
+    bottom: max(8px, env(safe-area-inset-bottom));
+    padding: 0;
+    pointer-events: none;
+  }
+
+  .controls button {
+    pointer-events: auto;
+    background-color: rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(8px);
   }
 }

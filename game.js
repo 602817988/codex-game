@@ -1,5 +1,8 @@
 const canvas = document.querySelector("#game");
 const ctx = canvas.getContext("2d");
+const levelNoEl = document.querySelector("#levelNo");
+const levelNameEl = document.querySelector("#levelName");
+const powerStatusEl = document.querySelector("#powerStatus");
 const scoreEl = document.querySelector("#score");
 const coinsEl = document.querySelector("#coins");
 const livesEl = document.querySelector("#lives");
@@ -11,46 +14,147 @@ const startBtn = document.querySelector("#startBtn");
 
 const W = canvas.width;
 const H = canvas.height;
-const WORLD_W = 4300;
 const GRAVITY = 0.82;
-const keys = { left: false, right: false, jump: false };
+const keys = { left: false, right: false, jump: false, dash: false };
 let cameraX = 0;
 let lastTime = 0;
 let running = false;
-let won = false;
+let currentLevelIndex = 0;
+let activeLevel = null;
+let dashLatch = false;
 
-const level = {
-  platforms: [
-    { x: 0, y: 640, w: 900, h: 90, kind: "ground" },
-    { x: 1010, y: 640, w: 520, h: 90, kind: "ground" },
-    { x: 1660, y: 640, w: 660, h: 90, kind: "ground" },
-    { x: 2460, y: 640, w: 650, h: 90, kind: "ground" },
-    { x: 3260, y: 640, w: 1040, h: 90, kind: "ground" },
-    { x: 360, y: 506, w: 210, h: 26, kind: "glass" },
-    { x: 690, y: 420, w: 190, h: 26, kind: "glass" },
-    { x: 1160, y: 496, w: 250, h: 26, kind: "glass" },
-    { x: 1510, y: 390, w: 170, h: 26, kind: "glass" },
-    { x: 1900, y: 500, w: 240, h: 26, kind: "glass" },
-    { x: 2220, y: 414, w: 170, h: 26, kind: "glass" },
-    { x: 2660, y: 492, w: 260, h: 26, kind: "glass" },
-    { x: 3080, y: 405, w: 180, h: 26, kind: "glass" },
-    { x: 3430, y: 512, w: 260, h: 26, kind: "glass" },
-    { x: 3820, y: 430, w: 220, h: 26, kind: "glass" },
-  ],
-  coins: [
-    [430, 460], [530, 460], [730, 374], [830, 374], [1210, 448], [1320, 448],
-    [1544, 342], [1630, 342], [1960, 452], [2070, 452], [2260, 366], [2345, 366],
-    [2720, 444], [2840, 444], [3125, 358], [3210, 358], [3500, 464], [3610, 464],
-    [3870, 382], [3970, 382], [4110, 590],
-  ].map(([x, y]) => ({ x, y, r: 15, taken: false })),
-  enemies: [
-    { x: 780, y: 588, w: 52, h: 52, vx: 1.1, min: 650, max: 875, alive: true },
-    { x: 1350, y: 588, w: 52, h: 52, vx: -1.15, min: 1080, max: 1490, alive: true },
-    { x: 2040, y: 588, w: 52, h: 52, vx: 1.2, min: 1760, max: 2285, alive: true },
-    { x: 2890, y: 588, w: 52, h: 52, vx: -1.18, min: 2530, max: 3050, alive: true },
-    { x: 3620, y: 588, w: 52, h: 52, vx: 1.28, min: 3330, max: 4180, alive: true },
-  ],
-};
+const levelDefs = [
+  {
+    name: "第一关：星光草坡",
+    intro: "热身关，熟悉跳跃、冲刺和道具节奏。",
+    worldW: 3600,
+    start: { x: 74, y: 510 },
+    goal: { x: 3440, y: 552, w: 92, h: 148 },
+    platforms: [
+      { x: 0, y: 640, w: 920, h: 90, kind: "ground" },
+      { x: 1040, y: 640, w: 620, h: 90, kind: "ground" },
+      { x: 1800, y: 640, w: 720, h: 90, kind: "ground" },
+      { x: 2660, y: 640, w: 940, h: 90, kind: "ground" },
+      { x: 390, y: 506, w: 230, h: 26, kind: "glass" },
+      { x: 740, y: 432, w: 220, h: 26, kind: "glass" },
+      { x: 1210, y: 506, w: 260, h: 26, kind: "glass" },
+      { x: 2010, y: 500, w: 260, h: 26, kind: "glass" },
+      { x: 2850, y: 486, w: 290, h: 26, kind: "glass" },
+    ],
+    coins: [[430, 460], [540, 460], [790, 386], [900, 386], [1260, 458], [1400, 458], [2060, 452], [2200, 452], [2900, 438], [3040, 438], [3340, 590]],
+    enemies: [
+      { x: 1340, y: 588, w: 52, h: 52, vx: -1.0, min: 1120, max: 1580 },
+      { x: 2240, y: 588, w: 52, h: 52, vx: 1.1, min: 1880, max: 2480 },
+    ],
+    hazards: [
+      { x: 970, y: 616, w: 54, h: 24 },
+      { x: 1710, y: 616, w: 54, h: 24 },
+    ],
+    powerups: [
+      { x: 760, y: 384, type: "shield" },
+      { x: 2420, y: 590, type: "dash" },
+    ],
+  },
+  {
+    name: "第二关：霓虹断桥",
+    intro: "开始出现连续断桥和更多敌人，但仍然给你足够空间。",
+    worldW: 4300,
+    start: { x: 74, y: 510 },
+    goal: { x: 4150, y: 552, w: 92, h: 148 },
+    platforms: [
+      { x: 0, y: 640, w: 700, h: 90, kind: "ground" },
+      { x: 840, y: 640, w: 500, h: 90, kind: "ground" },
+      { x: 1510, y: 640, w: 460, h: 90, kind: "ground" },
+      { x: 2130, y: 640, w: 560, h: 90, kind: "ground" },
+      { x: 2850, y: 640, w: 430, h: 90, kind: "ground" },
+      { x: 3450, y: 640, w: 850, h: 90, kind: "ground" },
+      { x: 360, y: 500, w: 210, h: 26, kind: "glass" },
+      { x: 960, y: 468, w: 180, h: 26, kind: "glass" },
+      { x: 1260, y: 388, w: 180, h: 26, kind: "glass" },
+      { x: 1760, y: 492, w: 200, h: 26, kind: "glass" },
+      { x: 2320, y: 430, w: 220, h: 26, kind: "glass" },
+      { x: 3020, y: 500, w: 180, h: 26, kind: "glass" },
+      { x: 3360, y: 412, w: 190, h: 26, kind: "glass" },
+      { x: 3760, y: 480, w: 260, h: 26, kind: "glass" },
+    ],
+    coins: [[410, 452], [520, 452], [1010, 420], [1100, 420], [1300, 340], [1400, 340], [1810, 444], [1910, 444], [2380, 382], [2490, 382], [3060, 452], [3160, 452], [3410, 364], [3510, 364], [3830, 432], [3950, 432], [4080, 590]],
+    enemies: [
+      { x: 1150, y: 588, w: 52, h: 52, vx: 1.25, min: 880, max: 1310 },
+      { x: 2440, y: 588, w: 52, h: 52, vx: -1.35, min: 2180, max: 2660 },
+      { x: 3710, y: 588, w: 52, h: 52, vx: 1.45, min: 3510, max: 4240 },
+    ],
+    hazards: [
+      { x: 700, y: 612, w: 140, h: 28 },
+      { x: 1360, y: 612, w: 150, h: 28 },
+      { x: 1985, y: 612, w: 140, h: 28 },
+      { x: 2700, y: 612, w: 150, h: 28 },
+      { x: 3290, y: 612, w: 150, h: 28 },
+    ],
+    powerups: [
+      { x: 1268, y: 340, type: "spring" },
+      { x: 2260, y: 590, type: "shield" },
+      { x: 3350, y: 364, type: "slow" },
+    ],
+  },
+  {
+    name: "第三关：逆星炼狱",
+    intro: "变态难度。冲刺、护盾和耐心，一个都不能少。",
+    worldW: 5200,
+    start: { x: 74, y: 510 },
+    goal: { x: 5065, y: 552, w: 92, h: 148 },
+    platforms: [
+      { x: 0, y: 640, w: 520, h: 90, kind: "ground" },
+      { x: 700, y: 640, w: 250, h: 90, kind: "ground" },
+      { x: 1120, y: 640, w: 230, h: 90, kind: "ground" },
+      { x: 1540, y: 640, w: 260, h: 90, kind: "ground" },
+      { x: 1980, y: 640, w: 260, h: 90, kind: "ground" },
+      { x: 2480, y: 640, w: 230, h: 90, kind: "ground" },
+      { x: 2980, y: 640, w: 260, h: 90, kind: "ground" },
+      { x: 3480, y: 640, w: 240, h: 90, kind: "ground" },
+      { x: 3980, y: 640, w: 260, h: 90, kind: "ground" },
+      { x: 4560, y: 640, w: 640, h: 90, kind: "ground" },
+      { x: 430, y: 500, w: 130, h: 24, kind: "glass" },
+      { x: 820, y: 456, w: 118, h: 24, kind: "glass" },
+      { x: 1030, y: 374, w: 110, h: 24, kind: "glass" },
+      { x: 1330, y: 500, w: 120, h: 24, kind: "glass" },
+      { x: 1750, y: 432, w: 118, h: 24, kind: "glass" },
+      { x: 2150, y: 360, w: 112, h: 24, kind: "glass" },
+      { x: 2660, y: 486, w: 116, h: 24, kind: "glass" },
+      { x: 3180, y: 410, w: 112, h: 24, kind: "glass" },
+      { x: 3690, y: 332, w: 112, h: 24, kind: "glass" },
+      { x: 4210, y: 476, w: 118, h: 24, kind: "glass" },
+      { x: 4480, y: 392, w: 126, h: 24, kind: "glass" },
+      { x: 4760, y: 500, w: 170, h: 24, kind: "glass" },
+    ],
+    coins: [[450, 452], [830, 408], [1050, 326], [1350, 452], [1780, 384], [2180, 312], [2680, 438], [3200, 362], [3710, 284], [4240, 428], [4510, 344], [4800, 452], [4900, 452], [5010, 590]],
+    enemies: [
+      { x: 760, y: 588, w: 52, h: 52, vx: 2.1, min: 710, max: 940 },
+      { x: 1180, y: 588, w: 52, h: 52, vx: -2.2, min: 1130, max: 1340 },
+      { x: 1610, y: 588, w: 52, h: 52, vx: 2.25, min: 1550, max: 1790 },
+      { x: 2050, y: 588, w: 52, h: 52, vx: -2.35, min: 1990, max: 2230 },
+      { x: 3030, y: 588, w: 52, h: 52, vx: 2.35, min: 2990, max: 3230 },
+      { x: 4630, y: 588, w: 52, h: 52, vx: 2.55, min: 4580, max: 5180 },
+    ],
+    hazards: [
+      { x: 520, y: 608, w: 180, h: 32 },
+      { x: 950, y: 608, w: 170, h: 32 },
+      { x: 1350, y: 608, w: 190, h: 32 },
+      { x: 1800, y: 608, w: 180, h: 32 },
+      { x: 2240, y: 608, w: 240, h: 32 },
+      { x: 2710, y: 608, w: 270, h: 32 },
+      { x: 3240, y: 608, w: 240, h: 32 },
+      { x: 3720, y: 608, w: 260, h: 32 },
+      { x: 4240, y: 608, w: 320, h: 32 },
+      { x: 4338, y: 452, w: 120, h: 24 },
+    ],
+    powerups: [
+      { x: 430, y: 452, type: "dash" },
+      { x: 1750, y: 384, type: "shield" },
+      { x: 3160, y: 362, type: "spring" },
+      { x: 4480, y: 344, type: "slow" },
+    ],
+  },
+];
 
 const player = {
   x: 74,
@@ -63,23 +167,53 @@ const player = {
   face: 1,
   score: 0,
   coins: 0,
-  lives: 3,
+  lives: 4,
   invincible: 0,
+  shield: 0,
+  spring: 0,
+  slow: 0,
+  dashCooldown: 0,
 };
+
+function hydrateLevel(def) {
+  return {
+    ...def,
+    platforms: def.platforms.map((item) => ({ ...item })),
+    coins: def.coins.map(([x, y]) => ({ x, y, r: 15, taken: false })),
+    enemies: def.enemies.map((enemy) => ({ ...enemy, startX: enemy.x, startVx: enemy.vx, alive: true })),
+    hazards: def.hazards.map((item) => ({ ...item })),
+    powerups: def.powerups.map((item) => ({ ...item, r: 18, taken: false })),
+  };
+}
+
+function loadLevel(index, keepProgress = true) {
+  currentLevelIndex = index;
+  activeLevel = hydrateLevel(levelDefs[index]);
+  Object.assign(player, {
+    x: activeLevel.start.x,
+    y: activeLevel.start.y,
+    vx: 0,
+    vy: 0,
+    onGround: false,
+    face: 1,
+    invincible: keepProgress ? 100 : 0,
+    shield: 0,
+    spring: 0,
+    slow: 0,
+    dashCooldown: 0,
+  });
+  cameraX = 0;
+  dashLatch = false;
+  updateHud();
+}
 
 function resetGame() {
   Object.assign(player, {
-    x: 74, y: 510, vx: 0, vy: 0, onGround: false, face: 1,
-    score: 0, coins: 0, lives: 3, invincible: 0,
+    score: 0,
+    coins: 0,
+    lives: 4,
   });
-  level.coins.forEach((coin) => (coin.taken = false));
-  level.enemies.forEach((enemy, i) => {
-    enemy.alive = true;
-    enemy.x = [780, 1350, 2040, 2890, 3620][i];
-    enemy.vx = Math.abs(enemy.vx) * (i % 2 ? -1 : 1);
-  });
-  cameraX = 0;
-  won = false;
+  loadLevel(0, false);
   updateHud();
 }
 
@@ -88,9 +222,18 @@ function rectsOverlap(a, b) {
 }
 
 function updateHud() {
+  levelNoEl.textContent = currentLevelIndex + 1;
+  levelNameEl.textContent = activeLevel ? activeLevel.name : levelDefs[0].name;
   scoreEl.textContent = player.score;
   coinsEl.textContent = player.coins;
   livesEl.textContent = player.lives;
+
+  const effects = [];
+  if (player.shield > 0) effects.push("护盾");
+  if (player.spring > 0) effects.push("高跳");
+  if (player.slow > 0) effects.push("缓速");
+  if (player.dashCooldown <= 0) effects.push("冲刺就绪");
+  powerStatusEl.textContent = effects.length ? effects.join(" / ") : "无道具效果";
 }
 
 function showOverlay(kicker, title, text, button = "再来一次") {
@@ -105,26 +248,71 @@ function hideOverlay() {
   overlay.classList.add("is-hidden");
 }
 
+function absorbHit() {
+  if (player.shield > 0) {
+    player.shield = 0;
+    player.invincible = 120;
+    player.vy = -11;
+    player.vx = -player.face * 5;
+    updateHud();
+    return true;
+  }
+  return false;
+}
+
 function respawn() {
+  if (player.invincible > 0 || absorbHit()) return;
   player.lives -= 1;
   updateHud();
   if (player.lives <= 0) {
     running = false;
-    showOverlay("挑战结束", "差一点点", "星光还在路上。调整节奏，下一次可以踩得更漂亮。");
+    showOverlay("挑战结束", "星光碎了", "第三关尤其不讲武德。记住道具位置，再冲一次。");
     return;
   }
-  player.x = Math.max(74, cameraX + 70);
-  player.y = 360;
+  const startX = Math.max(activeLevel.start.x, Math.min(player.x - 120, activeLevel.worldW - 520));
+  player.x = startX;
+  player.y = 350;
   player.vx = 0;
   player.vy = 0;
-  player.invincible = 120;
+  player.invincible = 140;
+}
+
+function collectPowerup(powerup) {
+  powerup.taken = true;
+  player.score += 180;
+  if (powerup.type === "shield") player.shield = 1;
+  if (powerup.type === "spring") player.spring = 720;
+  if (powerup.type === "slow") player.slow = 600;
+  if (powerup.type === "dash") player.dashCooldown = 0;
+  updateHud();
+}
+
+function finishLevel() {
+  running = false;
+  player.score += 1000 + currentLevelIndex * 500;
+  updateHud();
+  if (currentLevelIndex < levelDefs.length - 1) {
+    showOverlay(
+      `第 ${currentLevelIndex + 1} 关完成`,
+      "光门开启",
+      `下一关：${levelDefs[currentLevelIndex + 1].name}。当前 ${player.coins} 星，${player.score} 分。`,
+      "进入下一关",
+    );
+    startBtn.dataset.nextLevel = String(currentLevelIndex + 1);
+    return;
+  }
+  showOverlay("三关全破", "星芽封神", `你收集了 ${player.coins} 颗星，最终得分 ${player.score}。`, "再玩一局");
+  startBtn.dataset.nextLevel = "0";
 }
 
 function update() {
   if (!running) return;
 
+  const maxSpeed = player.spring > 0 ? 8.0 : 7.2;
+  const jumpPower = player.spring > 0 ? -19.6 : -17.2;
   const accel = player.onGround ? 0.88 : 0.55;
   const friction = player.onGround ? 0.8 : 0.93;
+
   if (keys.left) {
     player.vx -= accel;
     player.face = -1;
@@ -134,18 +322,25 @@ function update() {
     player.face = 1;
   }
   if (!keys.left && !keys.right) player.vx *= friction;
-  player.vx = Math.max(-7.2, Math.min(7.2, player.vx));
+  player.vx = Math.max(-maxSpeed, Math.min(maxSpeed, player.vx));
 
   if (keys.jump && player.onGround) {
-    player.vy = -17.2;
+    player.vy = jumpPower;
     player.onGround = false;
   }
+
+  if (keys.dash && !dashLatch && player.dashCooldown <= 0) {
+    player.vx = player.face * 15.5;
+    player.dashCooldown = 70;
+    player.invincible = Math.max(player.invincible, 16);
+  }
+  dashLatch = keys.dash;
 
   player.vy += GRAVITY;
   player.vy = Math.min(player.vy, 18);
 
   player.x += player.vx;
-  for (const platform of level.platforms) {
+  for (const platform of activeLevel.platforms) {
     if (!rectsOverlap(player, platform)) continue;
     if (player.vx > 0) player.x = platform.x - player.w;
     if (player.vx < 0) player.x = platform.x + platform.w;
@@ -154,7 +349,7 @@ function update() {
 
   player.y += player.vy;
   player.onGround = false;
-  for (const platform of level.platforms) {
+  for (const platform of activeLevel.platforms) {
     if (!rectsOverlap(player, platform)) continue;
     if (player.vy > 0) {
       player.y = platform.y - player.h;
@@ -166,11 +361,18 @@ function update() {
     }
   }
 
-  player.x = Math.max(0, Math.min(WORLD_W - player.w, player.x));
+  player.x = Math.max(0, Math.min(activeLevel.worldW - player.w, player.x));
   if (player.y > H + 120) respawn();
   if (player.invincible > 0) player.invincible -= 1;
+  if (player.spring > 0) player.spring -= 1;
+  if (player.slow > 0) player.slow -= 1;
+  if (player.dashCooldown > 0) player.dashCooldown -= 1;
 
-  for (const coin of level.coins) {
+  for (const hazard of activeLevel.hazards) {
+    if (rectsOverlap(player, hazard)) respawn();
+  }
+
+  for (const coin of activeLevel.coins) {
     if (coin.taken) continue;
     const dx = player.x + player.w / 2 - coin.x;
     const dy = player.y + player.h / 2 - coin.y;
@@ -182,33 +384,34 @@ function update() {
     }
   }
 
-  for (const enemy of level.enemies) {
+  for (const powerup of activeLevel.powerups) {
+    if (powerup.taken) continue;
+    const dx = player.x + player.w / 2 - powerup.x;
+    const dy = player.y + player.h / 2 - powerup.y;
+    if (Math.hypot(dx, dy) < powerup.r + 34) collectPowerup(powerup);
+  }
+
+  const enemySpeedScale = player.slow > 0 ? 0.45 : 1;
+  for (const enemy of activeLevel.enemies) {
     if (!enemy.alive) continue;
-    enemy.x += enemy.vx;
+    enemy.x += enemy.vx * enemySpeedScale;
     if (enemy.x < enemy.min || enemy.x + enemy.w > enemy.max) enemy.vx *= -1;
 
     if (rectsOverlap(player, enemy)) {
       const stomp = player.vy > 0 && player.y + player.h - enemy.y < 26;
       if (stomp) {
         enemy.alive = false;
-        player.vy = -12;
+        player.vy = -12.5;
         player.score += 250;
         updateHud();
-      } else if (player.invincible <= 0) {
+      } else {
         respawn();
       }
     }
   }
 
-  if (player.x > 4105 && player.y > 420) {
-    won = true;
-    running = false;
-    player.score += 1000;
-    updateHud();
-    showOverlay("通关成功", "抵达光门", `你收集了 ${player.coins} 颗星，拿到 ${player.score} 分。`, "再玩一局");
-  }
-
-  cameraX = Math.max(0, Math.min(WORLD_W - W, player.x - W * 0.42));
+  if (rectsOverlap(player, activeLevel.goal)) finishLevel();
+  cameraX = Math.max(0, Math.min(activeLevel.worldW - W, player.x - W * 0.42));
 }
 
 function drawBackground(t) {
@@ -221,7 +424,7 @@ function drawBackground(t) {
 
   ctx.save();
   ctx.translate(-cameraX * 0.16, 0);
-  for (let i = 0; i < 9; i++) {
+  for (let i = 0; i < 10; i++) {
     const x = i * 560 + 80;
     drawCloud(x, 96 + (i % 3) * 56, 1 + (i % 2) * 0.22);
   }
@@ -229,7 +432,7 @@ function drawBackground(t) {
 
   ctx.save();
   ctx.translate(-cameraX * 0.36, 0);
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < 14; i++) {
     const x = i * 420 - 50;
     ctx.fillStyle = i % 2 ? "#203a52" : "#263f5a";
     roundedRect(x, 430 - (i % 4) * 36, 260, 260, 8);
@@ -245,7 +448,7 @@ function drawBackground(t) {
   ctx.save();
   ctx.globalAlpha = 0.55;
   ctx.fillStyle = "#46e2ff";
-  for (let i = 0; i < 60; i++) {
+  for (let i = 0; i < 72; i++) {
     const x = ((i * 173 - cameraX * 0.08) % W + W) % W;
     const y = (i * 71) % 390 + 32;
     ctx.fillRect(x, y + Math.sin(t / 900 + i) * 3, 2, 2);
@@ -292,6 +495,21 @@ function drawPlatform(platform) {
   ctx.stroke();
 }
 
+function drawHazard(hazard, t) {
+  const x = hazard.x - cameraX;
+  const teeth = Math.max(3, Math.floor(hazard.w / 24));
+  ctx.fillStyle = "#ff6f9e";
+  ctx.beginPath();
+  ctx.moveTo(x, hazard.y + hazard.h);
+  for (let i = 0; i <= teeth; i++) {
+    const px = x + (hazard.w / teeth) * i;
+    ctx.lineTo(px - hazard.w / teeth / 2, hazard.y + 2 + Math.sin(t / 130 + i) * 2);
+    ctx.lineTo(px, hazard.y + hazard.h);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
 function drawCoin(coin, t) {
   if (coin.taken) return;
   const pulse = Math.sin(t / 140 + coin.x) * 0.18 + 1;
@@ -307,6 +525,34 @@ function drawCoin(coin, t) {
   ctx.beginPath();
   ctx.arc(-5, -5, 5, 0, Math.PI * 2);
   ctx.fill();
+  ctx.restore();
+}
+
+function drawPowerup(powerup, t) {
+  if (powerup.taken) return;
+  const x = powerup.x - cameraX;
+  const y = powerup.y + Math.sin(t / 180 + powerup.x) * 5;
+  const colors = {
+    shield: ["#72f2a5", "盾"],
+    spring: ["#46e2ff", "跳"],
+    slow: ["#b9a7ff", "缓"],
+    dash: ["#ffd66b", "冲"],
+  };
+  const [color, label] = colors[powerup.type];
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.arc(0, 0, powerup.r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(255,255,255,0.75)";
+  ctx.lineWidth = 3;
+  ctx.stroke();
+  ctx.fillStyle = "#07111f";
+  ctx.font = "900 16px 'Noto Sans SC', sans-serif";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(label, 0, 1);
   ctx.restore();
 }
 
@@ -340,7 +586,14 @@ function drawPlayer(t) {
   ctx.save();
   ctx.translate(x + player.w / 2, player.y + player.h / 2);
   ctx.scale(player.face, 1);
-  ctx.fillStyle = "#46e2ff";
+  if (player.shield > 0) {
+    ctx.strokeStyle = "rgba(114, 242, 165, 0.85)";
+    ctx.lineWidth = 4;
+    ctx.beginPath();
+    ctx.ellipse(0, 0, 34, 42, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.fillStyle = player.spring > 0 ? "#72f2a5" : "#46e2ff";
   roundedRect(-22, -22, 44, 46, 8);
   ctx.fill();
   ctx.fillStyle = "#ff6f9e";
@@ -362,9 +615,10 @@ function drawPlayer(t) {
 }
 
 function drawGoal(t) {
-  const x = 4180 - cameraX;
+  const x = activeLevel.goal.x + activeLevel.goal.w / 2 - cameraX;
+  const y = activeLevel.goal.y + activeLevel.goal.h / 2;
   ctx.save();
-  ctx.translate(x, 560);
+  ctx.translate(x, y);
   ctx.strokeStyle = "#72f2a5";
   ctx.lineWidth = 10;
   ctx.beginPath();
@@ -383,18 +637,18 @@ function drawGoal(t) {
 
 function render(t = 0) {
   drawBackground(t);
-  ctx.save();
-  for (const platform of level.platforms) drawPlatform(platform);
-  for (const coin of level.coins) drawCoin(coin, t);
-  for (const enemy of level.enemies) drawEnemy(enemy, t);
+  for (const platform of activeLevel.platforms) drawPlatform(platform);
+  for (const hazard of activeLevel.hazards) drawHazard(hazard, t);
+  for (const coin of activeLevel.coins) drawCoin(coin, t);
+  for (const powerup of activeLevel.powerups) drawPowerup(powerup, t);
+  for (const enemy of activeLevel.enemies) drawEnemy(enemy, t);
   drawGoal(t);
   drawPlayer(t);
-  ctx.restore();
 
-  ctx.fillStyle = "rgba(255,255,255,0.58)";
-  ctx.font = "700 18px Inter, sans-serif";
+  ctx.fillStyle = "rgba(255,255,255,0.62)";
+  ctx.font = "800 18px Inter, 'Noto Sans SC', sans-serif";
   ctx.textAlign = "left";
-  ctx.fillText("A/D 或 ←/→ 移动   W/空格 跳跃", 28, 42);
+  ctx.fillText(`${activeLevel.name}   A/D 移动  W/空格 跳跃  Shift 冲刺`, 28, 42);
 }
 
 function loop(t) {
@@ -416,12 +670,17 @@ window.addEventListener("keydown", (event) => {
     setControl("jump", true);
     event.preventDefault();
   }
+  if (["ShiftLeft", "ShiftRight", "KeyJ"].includes(event.code)) {
+    setControl("dash", true);
+    event.preventDefault();
+  }
 });
 
 window.addEventListener("keyup", (event) => {
   if (["ArrowLeft", "KeyA"].includes(event.code)) setControl("left", false);
   if (["ArrowRight", "KeyD"].includes(event.code)) setControl("right", false);
   if (["ArrowUp", "KeyW", "Space"].includes(event.code)) setControl("jump", false);
+  if (["ShiftLeft", "ShiftRight", "KeyJ"].includes(event.code)) setControl("dash", false);
 });
 
 document.querySelectorAll("[data-control]").forEach((button) => {
@@ -441,12 +700,19 @@ document.querySelectorAll("[data-control]").forEach((button) => {
 });
 
 startBtn.addEventListener("click", () => {
-  resetGame();
+  const nextLevel = Number(startBtn.dataset.nextLevel || 0);
+  if (nextLevel > 0 && nextLevel < levelDefs.length) {
+    loadLevel(nextLevel, true);
+  } else {
+    resetGame();
+  }
+  startBtn.dataset.nextLevel = "0";
   running = true;
   window.scrollTo({ top: 0, behavior: "smooth" });
   hideOverlay();
 });
 
 resetGame();
+showOverlay("准备出发", "星芽冒险", "方向键或 A/D 移动，空格或 W 跳跃，Shift/J 冲刺。手机端用屏幕按钮，收集护盾、高跳、缓速和冲刺道具。", "开始游戏");
 render(0);
 requestAnimationFrame(loop);
