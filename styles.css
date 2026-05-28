@@ -1,0 +1,237 @@
+:root {
+  color-scheme: dark;
+  --ink: #f8fbff;
+  --muted: #adc2d1;
+  --panel: rgba(8, 17, 29, 0.76);
+  --line: rgba(255, 255, 255, 0.14);
+  --cyan: #46e2ff;
+  --mint: #72f2a5;
+  --rose: #ff6f9e;
+  --gold: #ffd66b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  color: var(--ink);
+  font-family: Inter, "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(70, 226, 255, 0.18), transparent 24rem),
+    radial-gradient(circle at 84% 78%, rgba(255, 111, 158, 0.16), transparent 27rem),
+    linear-gradient(135deg, #07111f 0%, #102436 46%, #151622 100%);
+  overflow-x: hidden;
+}
+
+button {
+  font: inherit;
+}
+
+.shell {
+  width: min(1180px, calc(100vw - 28px));
+  min-height: 100vh;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  padding: 24px 0;
+}
+
+.game-panel {
+  width: 100%;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
+  backdrop-filter: blur(18px);
+}
+
+.topbar {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 4px 14px;
+}
+
+.eyebrow {
+  margin: 0 0 4px;
+  color: var(--mint);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+h1 {
+  margin: 0;
+  font-size: clamp(1.45rem, 3vw, 2.65rem);
+  line-height: 1.04;
+  letter-spacing: 0;
+}
+
+.hud {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.hud span {
+  min-width: 82px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--muted);
+  text-align: center;
+  font-weight: 700;
+}
+
+.hud b {
+  color: var(--ink);
+}
+
+.canvas-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 280px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 8px;
+  background: #07111f;
+}
+
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: linear-gradient(180deg, rgba(4, 10, 18, 0.32), rgba(4, 10, 18, 0.78));
+  text-align: center;
+  transition: opacity 180ms ease, visibility 180ms ease;
+}
+
+.overlay.is-hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.overlay > div {
+  max-width: 520px;
+}
+
+.overlay p {
+  margin: 0;
+  color: #dce8f4;
+  line-height: 1.7;
+}
+
+#overlayKicker {
+  color: var(--gold);
+  font-size: 0.86rem;
+  font-weight: 900;
+}
+
+.overlay h2 {
+  margin: 8px 0 10px;
+  font-size: clamp(2.35rem, 8vw, 5.2rem);
+  line-height: 0.95;
+  letter-spacing: 0;
+}
+
+.overlay button {
+  margin-top: 20px;
+  min-width: 136px;
+  min-height: 46px;
+  border: 0;
+  border-radius: 8px;
+  color: #07111f;
+  background: linear-gradient(135deg, var(--gold), var(--mint));
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 14px 32px rgba(114, 242, 165, 0.24);
+}
+
+.controls {
+  display: none;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding-top: 14px;
+}
+
+.control-cluster {
+  display: flex;
+  gap: 10px;
+}
+
+.pad,
+.jump {
+  width: 58px;
+  height: 52px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: rgba(255, 255, 255, 0.1);
+  font-weight: 900;
+  touch-action: none;
+}
+
+.jump {
+  width: 78px;
+  color: #07111f;
+  background: var(--cyan);
+}
+
+@media (max-width: 760px) {
+  .shell {
+    width: min(100vw - 16px, 680px);
+    align-items: start;
+    padding-top: 8px;
+  }
+
+  .game-panel {
+    padding: 10px;
+  }
+
+  .topbar {
+    align-items: start;
+    flex-direction: column;
+    padding-bottom: 10px;
+  }
+
+  .hud {
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .hud span {
+    min-width: 0;
+    flex: 1;
+    padding-inline: 8px;
+  }
+
+  .canvas-wrap {
+    min-height: 230px;
+  }
+
+  .controls {
+    display: flex;
+  }
+}
